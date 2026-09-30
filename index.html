@@ -65,6 +65,11 @@ button.active{background:#111827;color:#fff}
 </div>
 
 <div class="card">
+<div class="section">Connection protection</div>
+<div class="small">Keep-alive is ON: the controller sends the Mastela status command every 2 seconds and automatically reconnects if the swing drops the BLE link while idle.</div>
+</div>
+
+<div class="card">
 <div class="section">BLE log</div>
 <div id="log" class="log">Ready.</div>
 </div>
@@ -74,18 +79,74 @@ button.active{background:#111827;color:#fff}
 const SERVICE = '03B80E5A-EDE8-4B33-A751-6CE34EC4C700';
 const CHAR = '7772E5DB-3868-4112-A1A9-F2669D106BF3';
 let device=null, characteristic=null;
+let reconnecting=false;
+let heartbeatTimer=null;
+let reconnectTimer=null;
+let lastHeartbeat=0;
 
 const $=id=>document.getElementById(id);
 function log(s){$('log').textContent += "\\n"+s; $('log').scrollTop=$('log').scrollHeight}
 function setStatus(s){$('status').textContent=s}
 
 function bytes(s){ return new TextEncoder().encode(s); }
-async function send(cmd){
-  if(!characteristic){alert('Connect to the Mastela first.');return;}
+async function send(cmd, quiet=false){
+  if(!characteristic || !device || !device.gatt || !device.gatt.connected){
+    if(!quiet) setStatus('Disconnected — reconnecting…');
+    scheduleReconnect();
+    return false;
+  }
   try{
-    await characteristic.writeValue(bytes(cmd));
-    log('TX '+cmd+'  ['+[...bytes(cmd)].map(x=>x.toString(16).padStart(2,'0')).join(' ')+']');
-  }catch(e){log('ERROR '+e); setStatus('Connection/write error')}
+    const data=bytes(cmd);
+    await characteristic.writeValue(data);
+    if(!quiet) log('TX '+cmd+'  ['+[...data].map(x=>x.toString(16).padStart(2,'0')).join(' ')+']');
+    return true;
+  }catch(e){
+    log((quiet?'KEEPALIVE ERROR ':'ERROR ')+e);
+    setStatus('Disconnected — reconnecting…');
+    scheduleReconnect();
+    return false;
+  }
+}
+
+function startHeartbeat(){
+  clearInterval(heartbeatTimer);
+  // The original app constantly monitored/recovered the BLE connection.
+  // Mastela appears to drop an otherwise-idle BLE link after only a few seconds,
+  // so send the existing status command before that idle window expires.
+  heartbeatTimer=setInterval(async()=>{
+    if(device?.gatt?.connected && characteristic){
+      lastHeartbeat=Date.now();
+      await send('cmd38', true);
+    } else if(device){
+      scheduleReconnect();
+    }
+  }, 2000);
+}
+
+function scheduleReconnect(){
+  if(!device || reconnecting || reconnectTimer) return;
+  reconnectTimer=setTimeout(async()=>{
+    reconnectTimer=null;
+    if(!device || device.gatt?.connected || reconnecting) return;
+    reconnecting=true;
+    try{
+      setStatus('Reconnecting…');
+      log('Reconnecting to '+(device.name||'SWING')+'…');
+      const server=await device.gatt.connect();
+      const service=await server.getPrimaryService(SERVICE);
+      characteristic=await service.getCharacteristic(CHAR);
+      await characteristic.startNotifications();
+      characteristic.addEventListener('characteristicvaluechanged',notify);
+      setStatus('Connected • keep-alive active');
+      await send('cmd38', true);
+      log('Reconnected');
+    }catch(e){
+      characteristic=null;
+      log('RECONNECT ERROR '+e);
+      setStatus('Reconnecting…');
+      setTimeout(scheduleReconnect, 1000);
+    }finally{reconnecting=false;}
+  }, 250);
 }
 function notify(e){
   const b=new Uint8Array(e.target.value.buffer);
@@ -105,14 +166,20 @@ async function connect(){
       optionalServices:[SERVICE]
     });
     log('Device: '+(device.name||device.id));
-    device.addEventListener('gattserverdisconnected',()=>setStatus('Disconnected'));
+    device.addEventListener('gattserverdisconnected',()=>{
+      characteristic=null;
+      setStatus('Disconnected — reconnecting…');
+      log('BLE disconnected');
+      scheduleReconnect();
+    });
     const server=await device.gatt.connect();
     const service=await server.getPrimaryService(SERVICE);
     characteristic=await service.getCharacteristic(CHAR);
     await characteristic.startNotifications();
     characteristic.addEventListener('characteristicvaluechanged',notify);
-    setStatus('Connected');
-    await send('cmd38');
+    setStatus('Connected • keep-alive active');
+    await send('cmd38', true);
+    startHeartbeat();
   }catch(e){log('CONNECT ERROR '+e);setStatus('Not connected')}
 }
 $('connect').onclick=connect;
