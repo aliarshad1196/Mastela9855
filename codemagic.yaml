@@ -1,32 +1,39 @@
 workflows:
   mastela-ios-testflight:
     name: Mastela 9855 iOS TestFlight
+    max_build_duration: 120
     instance_type: mac_mini_m2
-    max_build_duration: 60
+
+    integrations:
+      app_store_connect: mastela_appstore_connect
+
     environment:
       xcode: latest
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.local.Mastela9855
-      integrations:
-        app_store_connect: mastela_appstore_connect
+
     scripts:
-      - name: Verify project
+      - name: Verify Xcode project
         script: |
           set -e
           test -f "$CM_BUILD_DIR/Mastela9855.xcodeproj/project.pbxproj"
           test -f "$CM_BUILD_DIR/Mastela9855.xcodeproj/xcshareddata/xcschemes/Mastela9855.xcscheme"
-      - name: Apply signing profiles
+
+      - name: Set up iOS code signing
         script: |
+          set -e
           xcode-project use-profiles
-      - name: Build IPA
+
+      - name: Build signed IPA
         script: |
-          xcode-project build-ipa \
-            --project "$CM_BUILD_DIR/Mastela9855.xcodeproj" \
-            --scheme Mastela9855
+          set -e
+          xcode-project build-ipa             --project "$CM_BUILD_DIR/Mastela9855.xcodeproj"             --scheme "Mastela9855"
+
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+
     publishing:
       app_store_connect:
         auth: integration
