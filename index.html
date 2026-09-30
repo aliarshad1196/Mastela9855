@@ -25,13 +25,57 @@ button.active{background:#111827;color:#fff}
 <h1>🍼 Mastela 9855</h1>
 <div class="sub">BLE swing controller</div>
 <div class="card">
-      <h3>Speaker Volume</h3>
-      <div class="row">
-        <button class="btn" data-vol="26">🔊 Vol +</button>
-        <button class="btn" data-vol="27">🔉 Vol −</button>
-      </div>
-      <div class="small">Confirmed Mastela volume controls.</div>
-    </div>
+  <div id="status" class="status">Not connected</div>
+<div class="card" style="margin-top:10px">
+  <b>BLE Keep-Alive Test</b>
+  <div id="hbInfo" style="margin:8px 0">Keep-alive: 5000 ms • sent: 0</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <button onclick="setHeartbeat(5000)">5 sec</button>
+    <button onclick="setHeartbeat(1000)">1 sec</button>
+    <button onclick="setHeartbeat(250)">250 ms</button>
+  </div>
+  <small>Test 5 sec first. If the swing stops, try 1 sec, then 250 ms. Watch the sent counter.</small>
+</div>
+  <button class="primary" id="connect">Connect to Mastela</button>
+  <button id="backgroundBle" style="width:100%;margin-bottom:10px">Beacio Background BLE Diagnostic</button>
+  <div id="bgdiag" class="small" style="margin-top:8px;white-space:pre-wrap"></div>
+  <div class="small">Diagnostics for beacio background BLE. This will show exactly which background APIs your iPhone exposes and the permission/registration result.</div>
+</div>
+
+<div class="card">
+<div class="section">Power</div>
+<div class="grid two">
+<button id="powerOn">Power ON</button><button class="danger" id="powerOff">Power OFF</button>
+</div>
+</div>
+
+<div class="card">
+<div class="section">Swing level</div>
+<div class="grid">
+<button data-level="1">Level 1</button><button data-level="2">Level 2</button><button data-level="3">Level 3</button>
+<button data-level="4">Level 4</button><button data-level="5">Level 5</button><button id="swingOff">OFF</button>
+</div>
+</div>
+
+<div class="card">
+<div class="section">Music</div>
+<div class="grid two"><button id="musicOn">Music ON</button><button id="musicOff">Music OFF</button></div>
+<div style="margin-top:9px"><button id="nextSong" style="width:100%">▶ Next Song</button></div>
+</div>
+
+<div class="card">
+<div class="section">Timer</div>
+<div class="grid">
+<button data-timer="0">OFF</button><button data-timer="15">15 min</button><button data-timer="30">30 min</button>
+</div>
+<div style="margin-top:9px"><button id="timer45" style="width:100%">45 min</button></div>
+</div>
+
+<div class="card">
+<div class="section">Speaker Volume</div>
+<div class="grid two"><button data-vol="26">🔊 Vol +</button><button data-vol="27">🔉 Vol −</button></div>
+<div class="small">Confirmed Mastela volume controls.</div>
+</div>
 
 <div class="card">
 <div class="section">🔒 Safari keep-alive</div>
