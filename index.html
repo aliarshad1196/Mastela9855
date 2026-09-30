@@ -26,8 +26,18 @@ button.active{background:#111827;color:#fff}
 <div class="sub">BLE swing controller</div>
 <div class="card">
   <div id="status" class="status">Not connected</div>
+<div class="card" style="margin-top:10px">
+  <b>BLE Keep-Alive Test</b>
+  <div id="hbInfo" style="margin:8px 0">Keep-alive: 5000 ms • sent: 0</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <button onclick="setHeartbeat(5000)">5 sec</button>
+    <button onclick="setHeartbeat(1000)">1 sec</button>
+    <button onclick="setHeartbeat(250)">250 ms</button>
+  </div>
+  <small>Test 5 sec first. If the swing stops, try 1 sec, then 250 ms. Watch the sent counter.</small>
+</div>
   <button class="primary" id="connect">Connect to Mastela</button>
-  <button id="backgroundBle" style="width:100%;margin-bottom:10px">Diagnose Background BLE</button>
+  <button id="backgroundBle" style="width:100%;margin-bottom:10px">Beacio Background BLE Diagnostic</button>
   <div id="bgdiag" class="small" style="margin-top:8px;white-space:pre-wrap"></div>
   <div class="small">Diagnostics for beacio background BLE. This will show exactly which background APIs your iPhone exposes and the permission/registration result.</div>
 </div>
@@ -68,7 +78,7 @@ button.active{background:#111827;color:#fff}
 
 <div class="card">
 <div class="section">Connection protection</div>
-<div class="small">Two layers are available: normal Web Bluetooth keep-alive/reconnect, plus beacio native Background BLE. Tap “Enable Background BLE” after connecting, then leave Safari and test whether the swing continues.</div>
+<div class="small">Two layers are available: normal Web Bluetooth keep-alive/reconnect, plus beacio native Background BLE. Tap “Beacio Background BLE Diagnostic” after connecting, then leave Safari and test whether the swing continues.</div>
 </div>
 
 <div class="card">
@@ -85,8 +95,12 @@ let reconnecting=false;
 let heartbeatTimer=null;
 let reconnectTimer=null;
 let lastHeartbeat=0;
+let heartbeatMs=5000;
+let heartbeatCount=0;
+let heartbeatBusy=false;
 
 const $=id=>document.getElementById(id);
+window.addEventListener('load', updateHeartbeatUI);
 function log(s){$('log').textContent += "\\n"+s; $('log').scrollTop=$('log').scrollHeight}
 function setStatus(s){$('status').textContent=s}
 
@@ -112,17 +126,37 @@ async function send(cmd, quiet=false){
 
 function startHeartbeat(){
   clearInterval(heartbeatTimer);
-  // The original app constantly monitored/recovered the BLE connection.
-  // Mastela appears to drop an otherwise-idle BLE link after only a few seconds,
-  // so send the existing status command before that idle window expires.
+  heartbeatCount=0;
+  heartbeatBusy=false;
+  updateHeartbeatUI();
+  // Testable Mastela keep-alive intervals. Start conservatively at 5s.
   heartbeatTimer=setInterval(async()=>{
+    if(heartbeatBusy) return;
     if(device?.gatt?.connected && characteristic){
-      lastHeartbeat=Date.now();
-      await send('cmd38', true);
+      heartbeatBusy=true;
+      try{
+        lastHeartbeat=Date.now();
+        const ok=await send('cmd38', true);
+        if(ok){ heartbeatCount++; updateHeartbeatUI(); }
+      }finally{ heartbeatBusy=false; }
     } else if(device){
       scheduleReconnect();
     }
-  }, 2000);
+  }, heartbeatMs);
+}
+function setHeartbeat(ms){
+  heartbeatMs=Number(ms)||5000;
+  clearInterval(heartbeatTimer);
+  heartbeatCount=0;
+  heartbeatBusy=false;
+  log('KEEP-ALIVE interval changed to '+heartbeatMs+' ms');
+  setStatus(device?.gatt?.connected ? 'Connected • '+heartbeatMs+'ms keep-alive' : 'Disconnected — reconnecting…');
+  if(device?.gatt?.connected) startHeartbeat();
+  updateHeartbeatUI();
+}
+function updateHeartbeatUI(){
+  const el=$('hbInfo');
+  if(el) el.textContent='Keep-alive: '+heartbeatMs+' ms • sent: '+heartbeatCount;
 }
 
 function scheduleReconnect(){
@@ -139,7 +173,7 @@ function scheduleReconnect(){
       characteristic=await service.getCharacteristic(CHAR);
       await characteristic.startNotifications();
       characteristic.addEventListener('characteristicvaluechanged',notify);
-      setStatus('Connected • keep-alive active');
+      setStatus('Connected • '+heartbeatMs+'ms keep-alive');
       await send('cmd38', true);
       log('Reconnected');
     }catch(e){
@@ -179,7 +213,7 @@ async function connect(){
     characteristic=await service.getCharacteristic(CHAR);
     await characteristic.startNotifications();
     characteristic.addEventListener('characteristicvaluechanged',notify);
-    setStatus('Connected • keep-alive active');
+    setStatus('Connected • '+heartbeatMs+'ms keep-alive');
     await send('cmd38', true);
     startHeartbeat();
   }catch(e){log('CONNECT ERROR '+e);setStatus('Not connected')}
