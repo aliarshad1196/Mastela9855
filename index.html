@@ -72,9 +72,9 @@ button.active{background:#111827;color:#fff}
 </div>
 
 <div class="card">
-<div class="section">Volume — TEST</div>
-<div class="grid three"><button data-vol-test="1">Volume 1</button><button data-vol-test="2">Volume 2</button><button data-vol-test="3">Volume 3</button></div>
-<div class="small">These test the currently strongest protocol candidates: cmd20, cmd21 and cmd22. They are not yet confirmed by the original app source. If one changes the Mastela speaker volume, we have identified the real volume commands.</div>
+<div class="section">Volume — TEST 2</div>
+<div class="grid three"><button data-vol-test="24">Candidate 1<br><span class="small">cmd24</span></button><button data-vol-test="26">Candidate 2<br><span class="small">cmd26</span></button><button data-vol-test="27">Candidate 3<br><span class="small">cmd27</span></button></div>
+<div class="small">Intelligent protocol test: cmd24, cmd26 and cmd27 are the three currently unidentified commands in the audio command block. Test while music is playing. If one changes volume, we have found a volume command.</div>
 </div>
 
 <div class="card">
@@ -355,7 +355,7 @@ $('swingOff').onclick=()=>send('cmd19');
 $('musicOn').onclick=()=>send('cmd28');
 $('musicOff').onclick=()=>send('cmd23');
 $('nextSong').onclick=()=>send('cmd25');
-document.querySelectorAll('[data-vol-test]').forEach(b=>b.onclick=()=>send('cmd2'+b.dataset.volTest));
+document.querySelectorAll('[data-vol-test]').forEach(b=>b.onclick=()=>send('cmd'+b.dataset.volTest));
 document.querySelectorAll('[data-timer]').forEach(b=>b.onclick=()=>send(b.dataset.timer==='0'?'cmd09':'cmd0'+({15:'1',30:'2'}[b.dataset.timer])));
 $('timer45').onclick=()=>send('cmd03');
 </script>
