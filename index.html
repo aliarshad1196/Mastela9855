@@ -60,6 +60,7 @@ button.active{background:#111827;color:#fff}
 <div class="card">
 <div class="section">Music</div>
 <div class="grid two"><button id="musicOn">Music ON</button><button id="musicOff">Music OFF</button></div>
+<div style="margin-top:9px"><button id="nextSong" style="width:100%">▶ Next Song</button></div>
 </div>
 
 <div class="card">
@@ -71,9 +72,9 @@ button.active{background:#111827;color:#fff}
 </div>
 
 <div class="card">
-<div class="section">Volume</div>
-<div class="status">Mastela volume control is not enabled yet</div>
-<div class="small">The previous Volume 1/2/3 buttons were incorrect: they sent the same command bytes used by Swing Levels 1/2/3. I removed them rather than risking changing the swing level. The Mastela manual confirms 3 volume options, but the supplied original app source does not expose the volume command, so we need to identify the real command before adding it.</div>
+<div class="section">Volume — TEST</div>
+<div class="grid three"><button data-vol-test="1">Volume 1</button><button data-vol-test="2">Volume 2</button><button data-vol-test="3">Volume 3</button></div>
+<div class="small">These test the currently strongest protocol candidates: cmd20, cmd21 and cmd22. They are not yet confirmed by the original app source. If one changes the Mastela speaker volume, we have identified the real volume commands.</div>
 </div>
 
 <div class="card">
@@ -353,6 +354,8 @@ document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{send('cmd18'
 $('swingOff').onclick=()=>send('cmd19');
 $('musicOn').onclick=()=>send('cmd28');
 $('musicOff').onclick=()=>send('cmd23');
+$('nextSong').onclick=()=>send('cmd25');
+document.querySelectorAll('[data-vol-test]').forEach(b=>b.onclick=()=>send('cmd2'+b.dataset.volTest));
 document.querySelectorAll('[data-timer]').forEach(b=>b.onclick=()=>send(b.dataset.timer==='0'?'cmd09':'cmd0'+({15:'1',30:'2'}[b.dataset.timer])));
 $('timer45').onclick=()=>send('cmd03');
 </script>
