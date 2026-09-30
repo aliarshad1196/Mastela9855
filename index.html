@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>Mastela 9855 Controller</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif;color:#111827;background:#f3f4f6}
+*{box-sizing:border-box} body{margin:0}.wrap{max-width:520px;margin:auto;padding:18px 16px 34px}
+h1{font-size:26px;margin:8px 0 4px}.sub{color:#6b7280;margin-bottom:18px}
+.card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 3px 16px #0000000d}
+.status{padding:12px;border-radius:12px;background:#eef2ff;margin-bottom:12px;font-size:14px}
+button{border:0;border-radius:14px;padding:14px 10px;font-size:16px;font-weight:600;background:#e5e7eb;color:#111827}
+button:active{transform:scale(.98)}button.primary{background:#111827;color:#fff;width:100%;margin-bottom:10px}
+button.danger{background:#fee2e2;color:#991b1b}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.two{grid-template-columns:repeat(2,1fr)} .section{font-weight:700;margin-bottom:10px}
+.small{font-size:12px;color:#6b7280}.log{font-family:ui-monospace,monospace;font-size:11px;background:#111827;color:#d1fae5;border-radius:12px;padding:10px;white-space:pre-wrap;max-height:180px;overflow:auto}
+button.active{background:#111827;color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🍼 Mastela 9855</h1>
+<div class="sub">BLE swing controller</div>
+<div class="card">
+  <div id="status" class="status">Not connected</div>
+  <button class="primary" id="connect">Connect to Mastela</button>
+  <div class="small">Requires Safari + beacio. Bluetooth permission will appear when you connect.</div>
+</div>
+
+<div class="card">
+<div class="section">Power</div>
+<div class="grid two">
+<button id="powerOn">Power ON</button><button class="danger" id="powerOff">Power OFF</button>
+</div>
+</div>
+
+<div class="card">
+<div class="section">Swing level</div>
+<div class="grid">
+<button data-level="1">Level 1</button><button data-level="2">Level 2</button><button data-level="3">Level 3</button>
+<button data-level="4">Level 4</button><button data-level="5">Level 5</button><button id="swingOff">OFF</button>
+</div>
+</div>
+
+<div class="card">
+<div class="section">Music</div>
+<div class="grid two"><button id="musicOn">Music ON</button><button id="musicOff">Music OFF</button></div>
+</div>
+
+<div class="card">
+<div class="section">Timer</div>
+<div class="grid">
+<button data-timer="0">OFF</button><button data-timer="15">15 min</button><button data-timer="30">30 min</button>
+</div>
+<div style="margin-top:9px"><button id="timer45" style="width:100%">45 min</button></div>
+</div>
+
+<div class="card">
+<div class="section">Volume</div>
+<div class="grid"><button data-vol="1">Volume 1</button><button data-vol="2">Volume 2</button><button data-vol="3">Volume 3</button></div>
+<div class="small" style="margin-top:8px">Volume commands are marked experimental because the original source did not label them explicitly.</div>
+</div>
+
+<div class="card">
+<div class="section">BLE log</div>
+<div id="log" class="log">Ready.</div>
+</div>
+</div>
+
+<script>
+const SERVICE = '03B80E5A-EDE8-4B33-A751-6CE34EC4C700';
+const CHAR = '7772E5DB-3868-4112-A1A9-F2669D106BF3';
+let device=null, characteristic=null;
+
+const $=id=>document.getElementById(id);
+function log(s){$('log').textContent += "\\n"+s; $('log').scrollTop=$('log').scrollHeight}
+function setStatus(s){$('status').textContent=s}
+
+function bytes(s){ return new TextEncoder().encode(s); }
+async function send(cmd){
+  if(!characteristic){alert('Connect to the Mastela first.');return;}
+  try{
+    await characteristic.writeValue(bytes(cmd));
+    log('TX '+cmd+'  ['+[...bytes(cmd)].map(x=>x.toString(16).padStart(2,'0')).join(' ')+']');
+  }catch(e){log('ERROR '+e); setStatus('Connection/write error')}
+}
+function notify(e){
+  const b=new Uint8Array(e.target.value.buffer);
+  const hex=[...b].map(x=>x.toString(16).padStart(2,'0')).join(' ');
+  log('RX ['+hex+']');
+  if(b.length>=5 && b[0]===0){
+    const p=b[1]?'ON':'OFF', level=b[2], music=b[3], timer=b[4];
+    setStatus(`Connected • Power ${p} • Swing ${level} • Music ${music?'ON':'OFF'} • Timer ${timer}`);
+  }
+}
+async function connect(){
+  try{
+    if(!navigator.bluetooth){alert('Bluetooth is not available. Make sure beacio is enabled for this Safari website.');return;}
+    setStatus('Scanning…');
+    device=await navigator.bluetooth.requestDevice({
+      filters:[{namePrefix:'swing'}],
+      optionalServices:[SERVICE]
+    });
+    log('Device: '+(device.name||device.id));
+    device.addEventListener('gattserverdisconnected',()=>setStatus('Disconnected'));
+    const server=await device.gatt.connect();
+    const service=await server.getPrimaryService(SERVICE);
+    characteristic=await service.getCharacteristic(CHAR);
+    await characteristic.startNotifications();
+    characteristic.addEventListener('characteristicvaluechanged',notify);
+    setStatus('Connected');
+    await send('cmd38');
+  }catch(e){log('CONNECT ERROR '+e);setStatus('Not connected')}
+}
+$('connect').onclick=connect;
+$('powerOn').onclick=()=>send('cmd35');
+$('powerOff').onclick=()=>send('cmd36');
+document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{send('cmd18');setTimeout(()=>send('cmd1'+b.dataset.level),30)});
+$('swingOff').onclick=()=>send('cmd19');
+$('musicOn').onclick=()=>send('cmd28');
+$('musicOff').onclick=()=>send('cmd23');
+document.querySelectorAll('[data-timer]').forEach(b=>b.onclick=()=>send(b.dataset.timer==='0'?'cmd09':'cmd0'+({15:'1',30:'2'}[b.dataset.timer])));
+$('timer45').onclick=()=>send('cmd03');
+document.querySelectorAll('[data-vol]').forEach(b=>b.onclick=()=>send('cmd'+(10+Number(b.dataset.vol))));
+</script>
+</body>
+</html>
