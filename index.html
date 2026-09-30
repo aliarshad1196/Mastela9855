@@ -27,8 +27,9 @@ button.active{background:#111827;color:#fff}
 <div class="card">
   <div id="status" class="status">Not connected</div>
   <button class="primary" id="connect">Connect to Mastela</button>
-  <button id="backgroundBle" style="width:100%;margin-bottom:10px">Enable Background BLE</button>
-  <div class="small">Requires Safari + beacio. Bluetooth permission will appear when you connect. Background BLE uses beacio’s native background connection when available.</div>
+  <button id="backgroundBle" style="width:100%;margin-bottom:10px">Diagnose Background BLE</button>
+  <div id="bgdiag" class="small" style="margin-top:8px;white-space:pre-wrap"></div>
+  <div class="small">Diagnostics for beacio background BLE. This will show exactly which background APIs your iPhone exposes and the permission/registration result.</div>
 </div>
 
 <div class="card">
@@ -185,34 +186,68 @@ async function connect(){
 }
 
 async function enableBackgroundBLE(){
+  const diag=[];
+  const put=(k,v)=>diag.push(k+': '+v);
   try{
+    put('iOS/Safari', /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'YES' : 'NO');
+    put('navigator.bluetooth', !!navigator.bluetooth);
+    put('navigator.beacio', !!navigator.beacio);
+    put('navigator.beacio.backgroundSync', !!navigator.beacio?.backgroundSync);
+    if(navigator.beacio?.backgroundSync){
+      put('requestPermission', typeof navigator.beacio.backgroundSync.requestPermission);
+      put('requestBackgroundConnection', typeof navigator.beacio.backgroundSync.requestBackgroundConnection);
+      put('getRegistrations', typeof navigator.beacio.backgroundSync.getRegistrations);
+    }
+    put('window.beacioIOS', !!window.beacioIOS);
+    if(window.beacioIOS) put('beacioIOS keys', Object.keys(window.beacioIOS).join(', ') || '(none visible)');
     if(!device || !device.id){
+      put('SWING device', 'NOT CONNECTED');
+      $('bgdiag').textContent=diag.join('\n');
+      log('BACKGROUND DIAGNOSTIC\n'+diag.join('\n'));
       setStatus('Connect to Mastela first');
-      log('BACKGROUND: connect to SWING first');
       return;
     }
-    if(!window.navigator.beacio?.backgroundSync){
-      setStatus('beacio Background BLE unavailable');
-      log('BACKGROUND: navigator.beacio.backgroundSync is not available');
-      alert('Your installed beacio version does not expose Background BLE on this page. Update beacio and make sure it is allowed on Every Website.');
+    put('SWING device', device.name+' / '+device.id);
+    if(!navigator.beacio?.backgroundSync){
+      put('RESULT', 'Background Sync API unavailable');
+      $('bgdiag').textContent=diag.join('\n');
+      log('BACKGROUND DIAGNOSTIC\n'+diag.join('\n'));
+      setStatus('Background BLE API unavailable');
       return;
     }
-    setStatus('Requesting background BLE permission…');
-    const permission=await navigator.beacio.backgroundSync.requestPermission();
+    setStatus('Checking background permission…');
+    let permission='unknown';
+    try{ permission=await navigator.beacio.backgroundSync.requestPermission(); }
+    catch(e){ permission='ERROR: '+(e?.message||e); }
+    put('background permission', permission);
     log('BACKGROUND permission: '+permission);
     if(permission!=='granted'){
+      put('RESULT', 'Permission was not granted');
+      $('bgdiag').textContent=diag.join('\n');
+      log('BACKGROUND DIAGNOSTIC\n'+diag.join('\n'));
       setStatus('Background BLE permission not granted');
       return;
     }
-    setStatus('Registering background BLE…');
+    setStatus('Registering background connection…');
     const registration=await navigator.beacio.backgroundSync.requestBackgroundConnection({deviceId:device.id});
     window._backgroundRegistration=registration;
-    log('BACKGROUND connection registered: '+(registration?.id||'ok'));
+    put('registration id', registration?.id || '(none returned)');
+    put('registration type', registration?.type || '(unknown)');
+    put('RESULT', 'Background connection registered');
+    if(typeof navigator.beacio.backgroundSync.getRegistrations==='function'){
+      try{
+        const regs=await navigator.beacio.backgroundSync.getRegistrations();
+        put('active registrations', JSON.stringify(regs.map(r=>({id:r.id,type:r.type}))) );
+      }catch(e){ put('getRegistrations error', e?.message||e); }
+    }
+    $('bgdiag').textContent=diag.join('\n');
+    log('BACKGROUND DIAGNOSTIC\n'+diag.join('\n'));
     setStatus('🟢 Background BLE enabled');
   }catch(e){
-    log('BACKGROUND ERROR '+(e?.stack||e));
+    put('RESULT', 'ERROR: '+(e?.message||e));
+    $('bgdiag').textContent=diag.join('\n');
+    log('BACKGROUND DIAGNOSTIC\n'+diag.join('\n'));
     setStatus('Background BLE setup failed');
-    alert('Background BLE setup failed: '+(e?.message||e));
   }
 }
 $('connect').onclick=connect;
