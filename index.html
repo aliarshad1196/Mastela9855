@@ -25,57 +25,13 @@ button.active{background:#111827;color:#fff}
 <h1>🍼 Mastela 9855</h1>
 <div class="sub">BLE swing controller</div>
 <div class="card">
-  <div id="status" class="status">Not connected</div>
-<div class="card" style="margin-top:10px">
-  <b>BLE Keep-Alive Test</b>
-  <div id="hbInfo" style="margin:8px 0">Keep-alive: 5000 ms • sent: 0</div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap">
-    <button onclick="setHeartbeat(5000)">5 sec</button>
-    <button onclick="setHeartbeat(1000)">1 sec</button>
-    <button onclick="setHeartbeat(250)">250 ms</button>
-  </div>
-  <small>Test 5 sec first. If the swing stops, try 1 sec, then 250 ms. Watch the sent counter.</small>
-</div>
-  <button class="primary" id="connect">Connect to Mastela</button>
-  <button id="backgroundBle" style="width:100%;margin-bottom:10px">Beacio Background BLE Diagnostic</button>
-  <div id="bgdiag" class="small" style="margin-top:8px;white-space:pre-wrap"></div>
-  <div class="small">Diagnostics for beacio background BLE. This will show exactly which background APIs your iPhone exposes and the permission/registration result.</div>
-</div>
-
-<div class="card">
-<div class="section">Power</div>
-<div class="grid two">
-<button id="powerOn">Power ON</button><button class="danger" id="powerOff">Power OFF</button>
-</div>
-</div>
-
-<div class="card">
-<div class="section">Swing level</div>
-<div class="grid">
-<button data-level="1">Level 1</button><button data-level="2">Level 2</button><button data-level="3">Level 3</button>
-<button data-level="4">Level 4</button><button data-level="5">Level 5</button><button id="swingOff">OFF</button>
-</div>
-</div>
-
-<div class="card">
-<div class="section">Music</div>
-<div class="grid two"><button id="musicOn">Music ON</button><button id="musicOff">Music OFF</button></div>
-<div style="margin-top:9px"><button id="nextSong" style="width:100%">▶ Next Song</button></div>
-</div>
-
-<div class="card">
-<div class="section">Timer</div>
-<div class="grid">
-<button data-timer="0">OFF</button><button data-timer="15">15 min</button><button data-timer="30">30 min</button>
-</div>
-<div style="margin-top:9px"><button id="timer45" style="width:100%">45 min</button></div>
-</div>
-
-<div class="card">
-<div class="section">Volume — TEST 2</div>
-<div class="grid three"><button data-vol-test="24">Candidate 1<br><span class="small">cmd24</span></button><button data-vol-test="26">Candidate 2<br><span class="small">cmd26</span></button><button data-vol-test="27">Candidate 3<br><span class="small">cmd27</span></button></div>
-<div class="small">Intelligent protocol test: cmd24, cmd26 and cmd27 are the three currently unidentified commands in the audio command block. Test while music is playing. If one changes volume, we have found a volume command.</div>
-</div>
+      <h3>Speaker Volume</h3>
+      <div class="row">
+        <button class="btn" data-vol="26">🔊 Vol +</button>
+        <button class="btn" data-vol="27">🔉 Vol −</button>
+      </div>
+      <div class="small">Confirmed Mastela volume controls.</div>
+    </div>
 
 <div class="card">
 <div class="section">🔒 Safari keep-alive</div>
@@ -355,7 +311,7 @@ $('swingOff').onclick=()=>send('cmd19');
 $('musicOn').onclick=()=>send('cmd28');
 $('musicOff').onclick=()=>send('cmd23');
 $('nextSong').onclick=()=>send('cmd25');
-document.querySelectorAll('[data-vol-test]').forEach(b=>b.onclick=()=>send('cmd'+b.dataset.volTest));
+document.querySelectorAll('[data-vol]').forEach(b=>b.onclick=()=>send('cmd'+b.dataset.vol));
 document.querySelectorAll('[data-timer]').forEach(b=>b.onclick=()=>send(b.dataset.timer==='0'?'cmd09':'cmd0'+({15:'1',30:'2'}[b.dataset.timer])));
 $('timer45').onclick=()=>send('cmd03');
 </script>
